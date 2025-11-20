@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>BTCMap — Tagging Start Page</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;line-height:1.5;color:#0f172a;background:#f8fafc;padding:24px}
+    .container{max-width:980px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;box-shadow:0 6px 24px rgba(2,6,23,0.08)}
+    h1{font-size:1.6rem;margin-bottom:6px}
+    h2{margin-top:20px;color:#0f172a}
+    p{margin:8px 0}
+    a{color:#0b5fff;text-decoration:none}
+    a:hover{text-decoration:underline}
+
+    /* Improved code block styling */
+    pre{
+      background:#1e293b;
+      color:#f1f5f9;
+      padding:14px;
+      border-radius:8px;
+      overflow:auto;
+      font-size:0.95rem;
+    }
+    code{
+      background:#e2e8f0;
+      padding:2px 6px;
+      border-radius:6px;
+    }
+    pre code {
+      background:transparent;
+      padding:0;
+      border-radius:0;
+      color:#f1f5f9;
+    }
+
+    ul{margin:6px 0 12px 20px}
+    .meta{font-size:0.95rem;color:#475569;margin-top:8px}
+    .note{background:#fff7ed;border-left:4px solid #f59e0b;padding:10px;border-radius:6px;margin-top:12px}
+    .footer{margin-top:22px;font-size:0.9rem;color:#64748b}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>BTCMap — Tagging Start Page</h1>
+    <p>A compact start page to tag and verify merchants for BTCMap / OpenStreetMap.</p>
+
+    <hr>
+
+    <h2>Resources</h2>
+    <ul>
+      <li>Open Square issues: <a href="https://gitea.btcmap.org/teambtcmap/btcmap-data/issues?page=26&type=all&state=open&milestone=0&project=0&assignee=0&labels=1307" target="_blank" rel="noopener">gitea — open Square issues</a></li>
+      <li>Tagging Merchants (BTCMap): <a href="https://gitea.btcmap.org/teambtcmap/btcmap-general/wiki/Tagging-Merchants" target="_blank" rel="noopener">Tagging-Merchants</a></li>
+      <li>Verifying Existing Merchants (BTCMap): <a href="https://gitea.btcmap.org/teambtcmap/btcmap-general/wiki/Verifying-Existing-Merchants" target="_blank" rel="noopener">Verifying-Existing-Merchants</a></li>
+      <li>OpenStreetMap — Good practice: <a href="https://wiki.openstreetmap.org/wiki/Good_practice" target="_blank" rel="noopener">Good_practice</a></li>
+      <li>OpenStreetMap — Tags index: <a href="https://wiki.openstreetmap.org/wiki/Tags" target="_blank" rel="noopener">Tags</a></li>
+      <li>Opening hours editor (YoHours): <a href="https://projets.pavie.info/yohours/" target="_blank" rel="noopener">yohours</a></li>
+      <li>Opening hours evaluation tool (NL): <a href="https://openingh.openstreetmap.de/evaluation_tool/?lng=nl" target="_blank" rel="noopener">openingh evaluation</a></li>
+      <li>OSM Wiki opening hours: <a href="https://wiki.openstreetmap.org/wiki/Key:opening_hours" target="_blank" rel="noopener">Key:opening_hours</a></li>
+    </ul>
+
+    <h2>Default tagging fields (BTCMap merchants)</h2>
+    <pre><code id="btcmap-default-tags">check_date=2025-11-14
+check_date:currency:XBT=2025-11-14      
+currency:XBT=yes
+payment:lightning=yes
+payment:lightning_contactless=no
+payment:onchain=no
+payment:lightning:operator=square</code></pre>
+
+    <h2>Socials & contact</h2>
+    <p>Check and add contact fields where available:</p>
+    <ul>
+      <li><code>website=</code></li>
+      <li><code>email=</code></li>
+      <li><code>phone=</code></li>
+      <li><code>contact:instagram=</code></li>
+      <li><code>contact:facebook=</code></li>
+      <li><code>contact:twitter=</code></li>
+      <li><code>contact:youtube=</code></li>
+      <li><code>contact:tiktok=</code></li>
+    </ul>
+
+    <h2>Labels in Gitea when closing</h2>
+    <ul>
+      <li><strong>added</strong> — when POI is added</li>
+      <li><strong>rejected</strong> — when it does not meet requirements or does not exist</li>
+    </ul>
+
+    <h2>Special cases</h2>
+    <ul>
+      <li>A <code>cafe</code> where only non-alcoholic drinks are served gets the extra tag <code>cuisine=coffee_shop</code> instead of <code>cuisine=bar</code>.</li>
+    </ul>
+
+    <h2>Text for new POI OSM</h2>
+    <pre><code>#btcmap - Merchant added.</code></pre>
+
+    <h2>Comment in Gitea after processing</h2>
+    <pre><code>Added to the map.
+&lt;URL here&gt;</code></pre>
+    <pre><code>Residential address. No signs of a company. Rejected.</code></pre>
+
+    <div class="note">
+      <strong>Notes</strong>
+      <p class="meta">Check all data and payment methods carefully. Consider correct opening hours syntax (use YoHours / evaluation tool). For Square issues: update relevant labels.</p>
+    </div>
+
+    <p class="footer">File updated: <strong>osm_tagging_startpage.html</strong></p>
+  </div>
+
+<script>
+  // Select all text inside a <pre><code> when clicked
+  (function(){
+    document.querySelectorAll('pre code').forEach(function(el){
+      el.addEventListener('click', function(){
+        const sel = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      });
+    });
+
+    // Make the two check_date lines reflect the current local date (YYYY-MM-DD)
+    var el = document.getElementById('btcmap-default-tags');
+    if (el) {
+      var now = new Date();
+      var yyyy = now.getFullYear();
+      var mm = String(now.getMonth() + 1).padStart(2, '0');
+      var dd = String(now.getDate()).padStart(2, '0');
+      var date = yyyy + '-' + mm + '-' + dd;
+      var txt = el.textContent;
+      txt = txt.replace(/^check_date=.*$/m, 'check_date=' + date);
+      txt = txt.replace(/^check_date:currency:XBT=.*$/m, 'check_date:currency:XBT=' + date);
+      el.textContent = txt;
+    }
+  })();
+</script>  
+</body>
+</html>
