@@ -59,6 +59,37 @@
       <li>OSM Wiki opening hours: <a href="https://wiki.openstreetmap.org/wiki/Key:opening_hours" target="_blank" rel="noopener">Key:opening_hours</a></li>
     </ul>
 
+    <h2>Picking the right OSM node type</h2>
+    <p>
+      With this form you can show suggestions for the right OSM node type based on some keywords
+    </p>
+
+    <!-- New: LLM-driven suggestion UI -->
+    <div id="llm-sugg" style="margin-top:12px;padding:12px;border-radius:8px;background:#f8fafc;border:1px solid #e6eef8">
+      <label style="display:block;font-weight:600;margin-bottom:6px">Keywords</label>
+      <input id="llm-keywords" type="text" placeholder="e.g. coffee, takeaway" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px">
+
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        <label style="margin:0;font-size:0.9rem">Provider:</label>
+        <select id="llm-provider" style="padding:8px;border-radius:8px">
+          <option value="openai">OpenAI (user key)</option>
+          <option value="custom">Custom endpoint</option>
+        </select>
+        <input id="llm-api" type="password" placeholder="API key or URL" style="flex:1;padding:8px;border:1px solid #e2e8f0;border-radius:8px">
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button id="llm-run" style="padding:8px 12px;border-radius:8px;background:#0b5fff;color:#fff;border:0;cursor:pointer">Suggest (LLM)</button>
+        <button id="llm-clear" style="padding:8px 12px;border-radius:8px;background:#f1f5f9;border:1px solid #e2e8f0;cursor:pointer">Clear</button>
+        <!-- model fixed to gpt-5-nano -->
+        <label style="margin-left:auto;font-size:0.9rem;color:#475569">Model (OpenAI): <input id="llm-model" value="gpt-5-nano" readonly disabled style="margin-left:6px;padding:6px;border-radius:6px;border:1px solid #e2e8f0;opacity:0.85"></label>
+      </div>
+
+      <div id="llm-status" style="margin-top:10px;color:#475569;font-size:0.95rem"></div>
+      <div id="llm-results" style="margin-top:12px"></div>
+      <div style="margin-top:10px;font-size:0.95rem;color:#475569">The LLM is asked to return JSON. This UI uses OpenAI model "gpt-5-nano" only. For OpenAI choose "OpenAI (user key)" and paste your Bearer key into the API key field. For a self-hosted/proxy endpoint, choose "Custom endpoint" and enter a full URL (POST JSON with the same payload shape as OpenAI's chat completions or a simple proxy that accepts {prompt}).</div>
+    </div>
+
     <h2>Default tagging fields (BTCMap merchants)</h2>
     <pre><code id="btcmap-default-tags">check_date=2025-11-14
 check_date:currency:XBT=2025-11-14      
@@ -108,33 +139,6 @@ payment:lightning:operator=square</code></pre>
     <p class="footer">File updated: <strong>osm_tagging_startpage.html</strong></p>
   </div>
 
-<script>
-  // Select all text inside a <pre><code> when clicked
-  (function(){
-    document.querySelectorAll('pre code').forEach(function(el){
-      el.addEventListener('click', function(){
-        const sel = window.getSelection();
-        const range = document.createRange();
-        range.selectNodeContents(el);
-        sel.removeAllRanges();
-        sel.addRange(range);
-      });
-    });
-
-    // Make the two check_date lines reflect the current local date (YYYY-MM-DD)
-    var el = document.getElementById('btcmap-default-tags');
-    if (el) {
-      var now = new Date();
-      var yyyy = now.getFullYear();
-      var mm = String(now.getMonth() + 1).padStart(2, '0');
-      var dd = String(now.getDate()).padStart(2, '0');
-      var date = yyyy + '-' + mm + '-' + dd;
-      var txt = el.textContent;
-      txt = txt.replace(/^check_date=.*$/m, 'check_date=' + date);
-      txt = txt.replace(/^check_date:currency:XBT=.*$/m, 'check_date:currency:XBT=' + date);
-      el.textContent = txt;
-    }
-  })();
-</script>  
+<script src="osm_tagging_startpage.js"></script>
 </body>
 </html>
