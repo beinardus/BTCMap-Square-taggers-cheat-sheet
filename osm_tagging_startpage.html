@@ -43,7 +43,7 @@
 <body>
   <div class="container">
     <h1>BTCMap — Tagging Start Page</h1>
-    <p>A compact start page to tag and verify merchants for BTCMap / OpenStreetMap.</p>
+    <p>A compact start page for tagging and verifying merchants for BTCMap / OpenStreetMap.</p>
 
     <hr>
 
@@ -59,9 +59,21 @@
       <li>OSM Wiki opening hours: <a href="https://wiki.openstreetmap.org/wiki/Key:opening_hours" target="_blank" rel="noopener">Key:opening_hours</a></li>
     </ul>
 
+    <h2>Workflow</h2>
+    <ol>
+      <li>Pick an open issue from the <a href="https://gitea.btcmap.org/teambtcmap/btcmap-data/issues?page=26&type=all&state=open&milestone=0&project=0&assignee=0&labels=1307" target="_blank" rel="noopener">gitea — open Square issues</a></li>
+      <li>Check if it is already assigned (except the bot). If so, pick another issue.</li>
+      <li>Assign the issue to yourself in Gitea (select from Assignees).</li>
+      <li>Research the merchant online to verify its existence and gather information.</li>
+      <li>Use the LLM suggestion tool below to help pick the right OSM node type.</li>
+      <li>Edit OSM with the appropriate tags, including default BTCMap tags.</li>
+      <li>Leave a comment in Gitea with the OSM URL or rejection reason.</li>
+      <li>Close the issue in Gitea.</li>
+    </ol>
+
     <h2>Picking the right OSM node type</h2>
     <p>
-      With this form you can show suggestions for the right OSM node type based on some keywords
+      Use this form to get suggestions for the appropriate OSM node type based on keywords. Use it when you are unsure which type to choose or when the OSM wizard does not help.
     </p>
 
     <!-- New: LLM-driven suggestion UI -->
@@ -87,10 +99,12 @@
 
       <div id="llm-status" style="margin-top:10px;color:#475569;font-size:0.95rem"></div>
       <div id="llm-results" style="margin-top:12px"></div>
-      <div style="margin-top:10px;font-size:0.95rem;color:#475569">The LLM is asked to return JSON. This UI uses OpenAI model "gpt-5-nano" only. For OpenAI choose "OpenAI (user key)" and paste your Bearer key into the API key field. For a self-hosted/proxy endpoint, choose "Custom endpoint" and enter a full URL (POST JSON with the same payload shape as OpenAI's chat completions or a simple proxy that accepts {prompt}).</div>
+      <div style="margin-top:10px;font-size:0.95rem;color:#475569">The LLM is instructed to return JSON only. This UI uses the OpenAI model "gpt-5-nano". For OpenAI, select "OpenAI (user key)" and paste your Bearer key into the API key field. For a self-hosted/proxy endpoint, choose "Custom endpoint" and enter a full URL (POST JSON with the same payload shape as OpenAI's chat completions or a simple proxy that accepts {prompt}).</div>
     </div>
 
     <h2>Default tagging fields (BTCMap merchants)</h2>
+    <p>Switch from grid view to the text view in the OSM editor (<img src="resources/toggle.png" style="vertical-align: middle; margin-left: 2px; margin-right: 2px" />), then add the following tags:</p>
+      
     <pre><code id="btcmap-default-tags">check_date=2025-11-14
 check_date:currency:XBT=2025-11-14      
 currency:XBT=yes
@@ -132,11 +146,23 @@ payment:lightning:operator=square</code></pre>
     <pre><code>Residential address. No signs of a company. Rejected.</code></pre>
 
     <div class="note">
-      <strong>Notes</strong>
+      <strong>Note</strong>
       <p class="meta">Check all data and payment methods carefully. Consider correct opening hours syntax (use YoHours / evaluation tool). For Square issues: update relevant labels.</p>
     </div>
 
-    <p class="footer">File updated: <strong>osm_tagging_startpage.html</strong></p>
+    <div class="note">
+      <strong>Note</strong>
+      <div class="meta">
+        <p>Do not add merchants that provide too little or poor information to be beneficial to the map. Examples include:</p>
+        <ul>
+          <li>Residential addresses with no signs of a business</li>
+          <li>Merchants with no website, social media presence, or contact information</li>
+        </ul>
+        <p>Provide as much information as possible when tagging, including opening hours, contact details, and social media accounts.</p>
+      </div>
+    </div>
+
+    <p class="footer">Work in Progress: <strong>suggestions are welcome</strong></p>
   </div>
 
 <script src="osm_tagging_startpage.js"></script>
