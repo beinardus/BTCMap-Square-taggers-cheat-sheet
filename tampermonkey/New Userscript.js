@@ -12,9 +12,27 @@
 const getAddress = (bodyHTML) => {
         const regex = /"address":\s*"(?<address>[^"]*)"/;
         const match = bodyHTML.match(regex);
-        console.log("match", match);
+        console.log("match address", match);
 
         return match?.groups?.address || "";
+};
+
+const getTown = (address) => {
+// "12792 MO-17 Roby MO 65557-8714 US"
+// "47 12TH ST SHALIMAR FL 32579-2026 US"
+        const regex = /(?<town>[^\s]*)\s[A-Z]+\s[0-9]+(-[0-9]+)?\sUS/;
+        const match = address.match(regex);
+        console.log("match town", match);
+
+        return match?.groups?.town || "";
+};
+
+const getMerchant = (bodyHTML) => {
+        const regex = /^Name:\s(?<name>[^<]*)</m;
+        const match = bodyHTML.match(regex);
+        console.log("match name", match);
+
+        return match?.groups?.name || "";
 };
 
 const getLatLon = (bodyHTML) => {
@@ -46,10 +64,9 @@ const prependParagraph = (node, paragraphHTML) => {
         const contentHTML = content.innerHTML;
 
         const address = getAddress(contentHTML);
-        const encoded = encodeURIComponent(address);
-        console.log("encoded", encoded);
-
         const latlon = getLatLon(contentHTML);
+        const town = getTown(address);
+        const name = getMerchant(contentHTML);
 
         const paragraphs = content.querySelectorAll('p[dir="auto"]');
         let osmParagraph = null;
@@ -62,7 +79,7 @@ const prependParagraph = (node, paragraphHTML) => {
         }
         if (!osmParagraph) return;
 
-        let gmLink = `https://www.google.nl/maps/place/${encoded}`;
+        let gmLink = `https://www.google.nl/maps/place/${encodeURIComponent(address)}`;
         prependParagraph(osmParagraph,
             `GoogleMaps address link: ` +
             `<a href="${gmLink}" ` +
@@ -74,8 +91,14 @@ const prependParagraph = (node, paragraphHTML) => {
             `<a href="${gmLink}" ` +
             `>${gmLink}</a>`);
 
+        let gLink = `https://www.google.com/search?q=%22${encodeURIComponent(name)}%22%20${encodeURIComponent(town)}`;
+        prependParagraph(osmParagraph,
+            `Google name and town link: ` +
+            `<a href="${gLink}" ` +
+            `>${gLink}</a>`);
+
         const anchors = content.querySelectorAll("a");
-        const targets = ["google", "google", "osm_view", "osm_edit", "_blank"];
+        const targets = ["google", "google", "google", "osm_view", "osm_edit", "_blank"];
         for(let i=0; i<targets.length;i++) {
             anchors[i].target = targets[i];
         }
