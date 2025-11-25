@@ -42,20 +42,30 @@ const prependParagraph = (node, paragraphHTML) => {
 };
 
 // Robust US Address Parser (single-file, no dependencies)
-// Handles: street, unit/suite, city, state, postal code, country.
-// Designed for single-line, no-comma addresses like:
-// "57556 29 Palms Hwy #105 Yucca Valley CA 92284 US"
+// Handles: street, unit/suite, city, state, postal code (ZIP+4), country
+// Example input: "6151 Sunflower Dr Cocoa FL 32927-9129 US"
+// Output: { street, unit, city, state, postal_code, country }
 
 function parseUSAddress(input) {
   const tokens = input.trim().split(/\s+/);
 
+  if (tokens.length < 4) return null; // minimal validation
+
   // ---- Extract trailing known components ----
-  const country = tokens.pop();                          // e.g., US
-  const postal_code = tokens.pop();                      // e.g., 92284
-  const state = tokens.pop();                            // e.g., CA
+  const country = tokens.pop(); // US
+
+  // Postal code: 5-digit or ZIP+4
+  let postal_code = "";
+  if (/^\d{5}(-\d{4})?$/.test(tokens[tokens.length - 1])) {
+    postal_code = tokens.pop();
+  } else {
+    postal_code = null; // fallback
+  }
+
+  const state = tokens.pop(); // e.g., FL
 
   // ---- Extract city ----
-  // City = last contiguous run of alphabetic tokens before state
+  // City = last contiguous run of alphabetic tokens before state/zip
   let cityTokens = [];
   while (tokens.length && /^[A-Za-z]+$/.test(tokens[tokens.length - 1])) {
     cityTokens.unshift(tokens.pop());
@@ -80,54 +90,52 @@ function parseUSAddress(input) {
     return UNIT_DESIGNATORS.has(token.toUpperCase());
   }
 
-  // Helper: is this a plausible unit number (not a street number)?
+  // Helper: is this a plausible unit number (not street number)?
   function isLikelyUnitNumber(token) {
-    // 10, 105, 2B, #10, A-101 etc.
     return /^#?\d+[A-Za-z-]*$/.test(token);
   }
 
-  // Helper: does this look like a highway or route number?
+  // Helper: is this token part of a highway/route? (avoid treating as unit)
   function isHighwayContext(i) {
     if (i === 0) return false;
     const prev = streetTokens[i - 1].toUpperCase();
     return ['HWY', 'HIGHWAY', 'ROUTE', 'RT', 'SR', 'CR', 'COUNTY', 'US', 'STATE'].includes(prev);
   }
 
-  // Identify the split point between street name and unit
+  // ---- Detect split between street & unit ----
   let splitIndex = streetTokens.length; // default: no unit
 
   for (let i = 0; i < streetTokens.length; i++) {
     const t = streetTokens[i];
 
-    // Case 1: Explicit designator → next token is unit
+    // Explicit unit designator
     if (isUnitDesignator(t)) {
       splitIndex = i;
       break;
     }
 
-    // Case 2: "#105"-style token
+    // "#105"-style token
     if (t.startsWith("#") && t.length > 1) {
       splitIndex = i;
       break;
     }
 
-    // Case 3: trailing unit-like number that is NOT part of a highway
+    // Trailing number likely to be unit
     if (i > 0 && isLikelyUnitNumber(t) && !isHighwayContext(i)) {
-      // but allow initial street number
-      if (i > 1) {
+      if (i > 1) { // avoid leading street number
         splitIndex = i;
         break;
       }
     }
   }
 
-  // Build street and unit
+  // ---- Build street & unit ----
   street = streetTokens.slice(0, splitIndex).join(" ");
 
   if (splitIndex < streetTokens.length) {
     const unitTokens = streetTokens.slice(splitIndex);
 
-    // Remove explicit designator if present and normalize
+    // Remove explicit designator if present
     if (isUnitDesignator(unitTokens[0])) {
       unit = unitTokens.slice(1).join(" ");
     } else {
