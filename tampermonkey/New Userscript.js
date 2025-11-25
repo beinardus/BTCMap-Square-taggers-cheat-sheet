@@ -17,18 +17,8 @@ const getAddress = (bodyHTML) => {
         return match?.groups?.address || "";
 };
 
-const getTown = (address) => {
-// "12792 MO-17 Roby MO 65557-8714 US"
-// "47 12TH ST SHALIMAR FL 32579-2026 US"
-        const regex = /(?<town>[^\s]*)\s[A-Z]+\s[0-9]+(-[0-9]+)?\sUS/;
-        const match = address.match(regex);
-        console.log("match town", match);
-
-        return match?.groups?.town || "";
-};
-
 const getMerchant = (bodyHTML) => {
-        const regex = /^Name:\s(?<name>[^<]*)</m;
+        const regex = /^Name:\s(?<name>.*)/m;
         const match = bodyHTML.match(regex);
         console.log("match name", match);
 
@@ -51,6 +41,110 @@ const prependParagraph = (node, paragraphHTML) => {
         return node.parentNode.insertBefore(newP, node);
 };
 
+// Robust US Address Parser (single-file, no dependencies)
+// Handles: street, unit/suite, city, state, postal code, country.
+// Designed for single-line, no-comma addresses like:
+// "57556 29 Palms Hwy #105 Yucca Valley CA 92284 US"
+
+function parseUSAddress(input) {
+  const tokens = input.trim().split(/\s+/);
+
+  // ---- Extract trailing known components ----
+  const country = tokens.pop();                          // e.g., US
+  const postal_code = tokens.pop();                      // e.g., 92284
+  const state = tokens.pop();                            // e.g., CA
+
+  // ---- Extract city ----
+  // City = last contiguous run of alphabetic tokens before state
+  let cityTokens = [];
+  while (tokens.length && /^[A-Za-z]+$/.test(tokens[tokens.length - 1])) {
+    cityTokens.unshift(tokens.pop());
+  }
+  const city = cityTokens.join(" ");
+
+  // ---- Remaining tokens = street + optional unit ----
+  const streetTokens = tokens;
+
+  // USPS unit designators
+  const UNIT_DESIGNATORS = new Set([
+    '#', 'APT', 'APARTMENT', 'UNIT', 'STE', 'SUITE', 'RM', 'ROOM',
+    'BLDG', 'BUILDING', 'FL', 'FLOOR', 'LOT', 'SPACE', 'DEPT',
+    'TRL', 'TRLR', 'NO', 'NO.'
+  ]);
+
+  let street = "";
+  let unit = "";
+
+  // Helper: is this token a unit designator?
+  function isUnitDesignator(token) {
+    return UNIT_DESIGNATORS.has(token.toUpperCase());
+  }
+
+  // Helper: is this a plausible unit number (not a street number)?
+  function isLikelyUnitNumber(token) {
+    // 10, 105, 2B, #10, A-101 etc.
+    return /^#?\d+[A-Za-z-]*$/.test(token);
+  }
+
+  // Helper: does this look like a highway or route number?
+  function isHighwayContext(i) {
+    if (i === 0) return false;
+    const prev = streetTokens[i - 1].toUpperCase();
+    return ['HWY', 'HIGHWAY', 'ROUTE', 'RT', 'SR', 'CR', 'COUNTY', 'US', 'STATE'].includes(prev);
+  }
+
+  // Identify the split point between street name and unit
+  let splitIndex = streetTokens.length; // default: no unit
+
+  for (let i = 0; i < streetTokens.length; i++) {
+    const t = streetTokens[i];
+
+    // Case 1: Explicit designator → next token is unit
+    if (isUnitDesignator(t)) {
+      splitIndex = i;
+      break;
+    }
+
+    // Case 2: "#105"-style token
+    if (t.startsWith("#") && t.length > 1) {
+      splitIndex = i;
+      break;
+    }
+
+    // Case 3: trailing unit-like number that is NOT part of a highway
+    if (i > 0 && isLikelyUnitNumber(t) && !isHighwayContext(i)) {
+      // but allow initial street number
+      if (i > 1) {
+        splitIndex = i;
+        break;
+      }
+    }
+  }
+
+  // Build street and unit
+  street = streetTokens.slice(0, splitIndex).join(" ");
+
+  if (splitIndex < streetTokens.length) {
+    const unitTokens = streetTokens.slice(splitIndex);
+
+    // Remove explicit designator if present and normalize
+    if (isUnitDesignator(unitTokens[0])) {
+      unit = unitTokens.slice(1).join(" ");
+    } else {
+      unit = unitTokens.join(" ");
+    }
+  }
+
+  return {
+    street,
+    unit: unit || null,
+    city,
+    state,
+    postal_code,
+    country
+  };
+}
+
 (function() {
     'use strict';
     console.log("Tampermonkey script loaded.");
@@ -61,12 +155,13 @@ const prependParagraph = (node, paragraphHTML) => {
         await delay(500); // ensure DOM is rendered
 
         const content = document.querySelector(".render-content");
-        const contentHTML = content.innerHTML;
+        const contentHTML = content.textContent;
 
         const address = getAddress(contentHTML);
         const latlon = getLatLon(contentHTML);
-        const town = getTown(address);
         const name = getMerchant(contentHTML);
+
+        const {city} = parseUSAddress(address);
 
         const paragraphs = content.querySelectorAll('p[dir="auto"]');
         let osmParagraph = null;
@@ -79,19 +174,19 @@ const prependParagraph = (node, paragraphHTML) => {
         }
         if (!osmParagraph) return;
 
-        let gmLink = `https://www.google.nl/maps/place/${encodeURIComponent(address)}`;
+        let gmLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
         prependParagraph(osmParagraph,
             `GoogleMaps address link: ` +
             `<a href="${gmLink}" ` +
             `>${gmLink}</a>`);
 
-        gmLink = `https://www.google.nl/maps/place/${latlon?.lat},${latlon?.lon}`;
+        gmLink = `https://www.google.com/maps/place/${latlon?.lat},${latlon?.lon}`;
         prependParagraph(osmParagraph,
             `GoogleMaps lat-lon link: ` +
             `<a href="${gmLink}" ` +
             `>${gmLink}</a>`);
 
-        let gLink = `https://www.google.com/search?q=%22${encodeURIComponent(name)}%22%20${encodeURIComponent(town)}`;
+        let gLink = `https://www.google.com/search?q=%22${encodeURIComponent(name)}%22%20${encodeURIComponent(city)}`;
         prependParagraph(osmParagraph,
             `Google name and town link: ` +
             `<a href="${gLink}" ` +
