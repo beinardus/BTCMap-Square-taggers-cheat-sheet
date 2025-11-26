@@ -9,6 +9,8 @@
 // @grant        none
 // ==/UserScript==
 
+const API_URL = "https://dutchbtc.ddns.net/square-address/split";
+
 const getAddress = (bodyHTML) => {
         const regex = /"address":\s*"(?<address>[^"]*)"/;
         const match = bodyHTML.match(regex);
@@ -41,116 +43,34 @@ const prependParagraph = (node, paragraphHTML) => {
         return node.parentNode.insertBefore(newP, node);
 };
 
-// Robust US Address Parser (single-file, no dependencies)
-// Handles: street, unit/suite, city, state, postal code (ZIP+4), country
-// Example input: "6151 Sunflower Dr Cocoa FL 32927-9129 US"
-// Output: { street, unit, city, state, postal_code, country }
+async function parseUSAddress(input) {
+    if (!input || typeof input !== "string") return null;
 
-function parseUSAddress(input) {
-  const tokens = input.trim().split(/\s+/);
+    try {
+        const resp = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ address: input.trim() })
+        });
 
-  if (tokens.length < 4) return null; // minimal validation
+        if (!resp.ok) {
+            console.error("Address API error:", resp.status, resp.statusText);
+            return null;
+        }
 
-  // ---- Extract trailing known components ----
-  const country = tokens.pop(); // US
+        const data = await resp.json();
 
-  // Postal code: 5-digit or ZIP+4
-  let postal_code = "";
-  if (/^\d{5}(-\d{4})?$/.test(tokens[tokens.length - 1])) {
-    postal_code = tokens.pop();
-  } else {
-    postal_code = null; // fallback
-  }
-
-  const state = tokens.pop(); // e.g., FL
-
-  // ---- Extract city ----
-  // City = last contiguous run of alphabetic tokens before state/zip
-  let cityTokens = [];
-  while (tokens.length && /^[A-Za-z]+$/.test(tokens[tokens.length - 1])) {
-    cityTokens.unshift(tokens.pop());
-  }
-  const city = cityTokens.join(" ");
-
-  // ---- Remaining tokens = street + optional unit ----
-  const streetTokens = tokens;
-
-  // USPS unit designators
-  const UNIT_DESIGNATORS = new Set([
-    '#', 'APT', 'APARTMENT', 'UNIT', 'STE', 'SUITE', 'RM', 'ROOM',
-    'BLDG', 'BUILDING', 'FL', 'FLOOR', 'LOT', 'SPACE', 'DEPT',
-    'TRL', 'TRLR', 'NO', 'NO.'
-  ]);
-
-  let street = "";
-  let unit = "";
-
-  // Helper: is this token a unit designator?
-  function isUnitDesignator(token) {
-    return UNIT_DESIGNATORS.has(token.toUpperCase());
-  }
-
-  // Helper: is this a plausible unit number (not street number)?
-  function isLikelyUnitNumber(token) {
-    return /^#?\d+[A-Za-z-]*$/.test(token);
-  }
-
-  // Helper: is this token part of a highway/route? (avoid treating as unit)
-  function isHighwayContext(i) {
-    if (i === 0) return false;
-    const prev = streetTokens[i - 1].toUpperCase();
-    return ['HWY', 'HIGHWAY', 'ROUTE', 'RT', 'SR', 'CR', 'COUNTY', 'US', 'STATE'].includes(prev);
-  }
-
-  // ---- Detect split between street & unit ----
-  let splitIndex = streetTokens.length; // default: no unit
-
-  for (let i = 0; i < streetTokens.length; i++) {
-    const t = streetTokens[i];
-
-    // Explicit unit designator
-    if (isUnitDesignator(t)) {
-      splitIndex = i;
-      break;
+        // Map API output to original field names
+        return data;
+    } catch (err) {
+        console.error("Failed to call address API:", err);
+        return null;
     }
+}
 
-    // "#105"-style token
-    if (t.startsWith("#") && t.length > 1) {
-      splitIndex = i;
-      break;
-    }
-
-    // Trailing number likely to be unit
-    if (i > 0 && isLikelyUnitNumber(t) && !isHighwayContext(i)) {
-      if (i > 1) { // avoid leading street number
-        splitIndex = i;
-        break;
-      }
-    }
-  }
-
-  // ---- Build street & unit ----
-  street = streetTokens.slice(0, splitIndex).join(" ");
-
-  if (splitIndex < streetTokens.length) {
-    const unitTokens = streetTokens.slice(splitIndex);
-
-    // Remove explicit designator if present
-    if (isUnitDesignator(unitTokens[0])) {
-      unit = unitTokens.slice(1).join(" ");
-    } else {
-      unit = unitTokens.join(" ");
-    }
-  }
-
-  return {
-    street,
-    unit: unit || null,
-    city,
-    state,
-    postal_code,
-    country
-  };
+const addressCodeBlock = (address_data) => {
+    const kv = Object.keys(address_data).map(k => `<tr><td>${k}</td><td>${address_data[k]}</td></tr>`).join("\n");
+    return `<table>${kv}</table>`;
 }
 
 (function() {
@@ -169,7 +89,8 @@ function parseUSAddress(input) {
         const latlon = getLatLon(contentHTML);
         const name = getMerchant(contentHTML);
 
-        const {city} = parseUSAddress(address);
+        const address_data = await parseUSAddress(address);
+        console.log(address_data);
 
         const paragraphs = content.querySelectorAll('p[dir="auto"]');
         let osmParagraph = null;
@@ -183,6 +104,8 @@ function parseUSAddress(input) {
         if (!osmParagraph) return;
 
         let gmLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+        prependParagraph(osmParagraph, addressCodeBlock(address_data));
+
         prependParagraph(osmParagraph,
             `GoogleMaps address link: ` +
             `<a href="${gmLink}" ` +
@@ -194,7 +117,7 @@ function parseUSAddress(input) {
             `<a href="${gmLink}" ` +
             `>${gmLink}</a>`);
 
-        let gLink = `https://www.google.com/search?q=%22${encodeURIComponent(name)}%22%20${encodeURIComponent(city)}`;
+        let gLink = `https://www.google.com/search?q=%22${encodeURIComponent(name)}%22%20${encodeURIComponent(address_data["addr:city"])}`;
         prependParagraph(osmParagraph,
             `Google name and town link: ` +
             `<a href="${gLink}" ` +
