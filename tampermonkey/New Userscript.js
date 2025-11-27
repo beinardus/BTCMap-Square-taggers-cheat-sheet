@@ -103,9 +103,10 @@ const addressCodeBlock = (address_data) => {
         }
         if (!osmParagraph) return;
 
-        let gmLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
-        prependParagraph(osmParagraph, addressCodeBlock(address_data));
+        if (address_data)
+            prependParagraph(osmParagraph, addressCodeBlock(address_data));
 
+        let gmLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
         prependParagraph(osmParagraph,
             `GoogleMaps address link: ` +
             `<a href="${gmLink}" ` +
@@ -117,17 +118,36 @@ const addressCodeBlock = (address_data) => {
             `<a href="${gmLink}" ` +
             `>${gmLink}</a>`);
 
-        let gLink = `https://www.google.com/search?q=%22${encodeURIComponent(name)}%22%20${encodeURIComponent(address_data["addr:city"])}`;
-        prependParagraph(osmParagraph,
-            `Google name and town link: ` +
-            `<a href="${gLink}" ` +
-            `>${gLink}</a>`);
-
-        const anchors = content.querySelectorAll("a");
-        const targets = ["google", "google", "google", "osm_view", "osm_edit", "_blank"];
-        for(let i=0; i<targets.length;i++) {
-            anchors[i].target = targets[i];
+        if (address_data) {
+            let gLink = `https://www.google.com/search?q=%22${encodeURIComponent(name)}%22%20${encodeURIComponent(address_data["addr:city"])}`;
+            prependParagraph(osmParagraph,
+                `Google name and town link: ` +
+                `<a href="${gLink}" ` +
+                `>${gLink}</a>`);
         }
+
+        {
+            const anchors = content.querySelectorAll("a");
+            const targets = ["google", "google", "google", "osm_view", "osm_edit", "_blank"];
+            for(let i=0; i<targets.length;i++) {
+                anchors[i].target = targets[i];
+            }
+        }
+
+        {
+            // only keep essential labels to pick from (added, rejected, pending)
+            const essentialLabels = ["1334", "1333", "1335"];
+            const anchors = document.querySelectorAll(".issue-sidebar-combo[data-update-url*='/labels?'] a");
+
+            for (const anchor of anchors) {
+                const dataValue = anchor.getAttribute("data-value");
+                console.log(dataValue);
+                if (dataValue && !essentialLabels.includes(dataValue)) {
+                    anchor.remove();
+                }
+            }
+        }
+
     }
 
     run();
