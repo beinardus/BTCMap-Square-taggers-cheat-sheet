@@ -106,11 +106,14 @@ const addressCodeBlock = (address_data) => {
         if (address_data)
             prependParagraph(osmParagraph, addressCodeBlock(address_data));
 
+        const targets = [];
+
         let gmLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
         prependParagraph(osmParagraph,
             `GoogleMaps address link: ` +
             `<a href="${gmLink}" ` +
             `>${gmLink}</a>`);
+        targets.push("google");
 
         if (address_data) {
             let gLink = `https://www.google.com/search?q=%22${encodeURIComponent(name)}%22%20${encodeURIComponent(address_data["addr:city"])}`;
@@ -118,6 +121,7 @@ const addressCodeBlock = (address_data) => {
                 `Google name and town link: ` +
                 `<a href="${gLink}" ` +
                 `>${gLink}</a>`);
+            targets.push("google");
         }
 
         gmLink = `https://www.google.com/maps/place/${latlon?.lat},${latlon?.lon}`;
@@ -125,10 +129,13 @@ const addressCodeBlock = (address_data) => {
             `GoogleMaps lat-lon link: ` +
             `<a href="${gmLink}" ` +
             `>${gmLink}</a>`);
+        targets.push("google");
+
+        targets.push("osm_view", "osm_edit", "_blank");
+        console.log(targets);
 
         {
             const anchors = content.querySelectorAll("a");
-            const targets = ["google", "google", "google", "osm_view", "osm_edit", "_blank"];
             for(let i=0; i<targets.length;i++) {
                 anchors[i].target = targets[i];
             }
@@ -145,7 +152,6 @@ const addressCodeBlock = (address_data) => {
 
             for (const anchor of anchorsAll) {
                 const dataValue = anchor.getAttribute("data-value");
-                console.log(dataValue);
                 if (dataValue && !keepLabelIds.includes(dataValue)) {
                     anchor.remove();
                 }
