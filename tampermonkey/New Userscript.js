@@ -112,12 +112,6 @@ const addressCodeBlock = (address_data) => {
             `<a href="${gmLink}" ` +
             `>${gmLink}</a>`);
 
-        gmLink = `https://www.google.com/maps/place/${latlon?.lat},${latlon?.lon}`;
-        prependParagraph(osmParagraph,
-            `GoogleMaps lat-lon link: ` +
-            `<a href="${gmLink}" ` +
-            `>${gmLink}</a>`);
-
         if (address_data) {
             let gLink = `https://www.google.com/search?q=%22${encodeURIComponent(name)}%22%20${encodeURIComponent(address_data["addr:city"])}`;
             prependParagraph(osmParagraph,
@@ -125,6 +119,12 @@ const addressCodeBlock = (address_data) => {
                 `<a href="${gLink}" ` +
                 `>${gLink}</a>`);
         }
+
+        gmLink = `https://www.google.com/maps/place/${latlon?.lat},${latlon?.lon}`;
+        prependParagraph(osmParagraph,
+            `GoogleMaps lat-lon link: ` +
+            `<a href="${gmLink}" ` +
+            `>${gmLink}</a>`);
 
         {
             const anchors = content.querySelectorAll("a");
@@ -135,19 +135,25 @@ const addressCodeBlock = (address_data) => {
         }
 
         {
-            // only keep essential labels to pick from (added, rejected, pending)
-            const essentialLabels = ["1334", "1333", "1335"];
-            const anchors = document.querySelectorAll(".issue-sidebar-combo[data-update-url*='/labels?'] a");
+            const combo = document.querySelector(".issue-sidebar-combo[data-update-url*='/labels?']");
+            const anchorsAll = combo.querySelectorAll("a");
 
-            for (const anchor of anchors) {
+            // keep essential labels to pick from (added, rejected, pending), and labels already selected
+            const essentialLabels = ["1334", "1333", "1335"];
+            const anchorsSelected = combo.querySelectorAll(".labels-list a");
+            const keepLabelIds = [...essentialLabels, ...[...anchorsSelected].map(a => a.href.match(/labels=(\d+)/)?.[1])];
+
+            for (const anchor of anchorsAll) {
                 const dataValue = anchor.getAttribute("data-value");
                 console.log(dataValue);
-                if (dataValue && !essentialLabels.includes(dataValue)) {
+                if (dataValue && !keepLabelIds.includes(dataValue)) {
                     anchor.remove();
                 }
             }
         }
 
+        // remove OSM viewer paragraph
+        osmParagraph.remove();
     }
 
     run();
