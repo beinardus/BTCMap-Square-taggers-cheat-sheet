@@ -35,14 +35,6 @@ const getLatLon = (bodyHTML) => {
     return match?{lat: match.groups.lat, lon: match.groups.lon}:null;
 };
 
-const prependParagraph = (node, paragraphHTML) => {
-        const newP = document.createElement("p");
-        newP.setAttribute("dir", "auto");
-
-        newP.innerHTML = paragraphHTML;
-        return node.parentNode.insertBefore(newP, node);
-};
-
 async function parseUSAddress(input) {
     if (!input || typeof input !== "string") return null;
 
@@ -68,9 +60,77 @@ async function parseUSAddress(input) {
     }
 }
 
-const addressCodeBlock = (address_data) => {
-    const kv = Object.keys(address_data).map(k => `<tr><td>${k}</td><td>${address_data[k]}</td></tr>`).join("\n");
-    return `<table>${kv}</table>`;
+function createLink(label, href) {
+    const a = document.createElement("a");
+    a.href = href;
+    a.target = "_blank";
+    a.textContent = label;
+    return a;
+}
+
+function addressCodeBlock(address_data) {
+    const table = document.createElement("table");
+
+    for (const [key, value] of Object.entries(address_data)) {
+        const tr = document.createElement("tr");
+
+        const tdKey = document.createElement("td");
+        tdKey.textContent = key;
+
+        const tdVal = document.createElement("td");
+        tdVal.textContent = value;
+
+        tr.append(tdKey, tdVal);
+        table.append(tr);
+    }
+
+    return table; // a real DOM node
+}
+
+function buildNewContent({ address, latlon, name, address_data }) {
+    const frag = document.createDocumentFragment();
+
+    const wrap = el => {
+        const p = document.createElement("p");
+        p.setAttribute("dir", "auto");
+        p.append(el);
+        return p;
+    };
+
+    // --- Title ---
+    const h = document.createElement("h2");
+    h.textContent = "Extracted Information";
+    frag.append(h);
+
+    // --- Address code block ---
+    if (address_data) {
+        const block = addressCodeBlock(address_data);
+        frag.append(block);
+    }
+
+    // --- Google Maps (address) ---
+    const gmAddressUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+    frag.append(wrap(createLink("Google Maps (address)", gmAddressUrl)));
+
+    // --- Google Search (name + town) ---
+    if (address_data?.["addr:city"]) {
+        const gQuery = `https://www.google.com/search?q=%22${encodeURIComponent(name)}%22%20${encodeURIComponent(address_data["addr:city"])}`;
+        frag.append(wrap(createLink("Google Search (name & city)", gQuery)));
+    }
+
+    // --- Google Maps (lat/lon) ---
+    if (latlon?.lat && latlon?.lon) {
+        const gmLL = `https://www.google.com/maps/place/${latlon.lat},${latlon.lon}`;
+        frag.append(wrap(createLink("Google Maps (lat/lon)", gmLL)));
+    }
+
+    // --- OSM ---
+    if (latlon?.lat && latlon?.lon) {
+        const osmEditor = `https://www.openstreetmap.org/edit#map=21/${latlon.lat}/${latlon.lon}`;
+        frag.append(wrap(createLink("OpenStreetMap editor", osmEditor)));
+    }
+
+    return frag;
 }
 
 (function() {
@@ -92,54 +152,18 @@ const addressCodeBlock = (address_data) => {
         const address_data = await parseUSAddress(address);
         console.log(address_data);
 
-        const paragraphs = content.querySelectorAll('p[dir="auto"]');
-        let osmParagraph = null;
+        // TODO: construct totally new content but preserve the first 2 paragraphs
+        const preserved = document.createDocumentFragment();        
+            [...content.querySelectorAll("p")].slice(0,3).forEach(p => {
+                preserved.append(p.cloneNode(true)); // deep clone
+            });
 
-        for (const p of paragraphs) {
-            if (p.textContent.includes("OpenStreetMap viewer link")) {
-                osmParagraph = p;
-                break;
-            }
-        }
-        if (!osmParagraph) return;
+        const newContent = buildNewContent({ address, latlon, name, address_data });
 
-        if (address_data)
-            prependParagraph(osmParagraph, addressCodeBlock(address_data));
-
-        const targets = [];
-
-        let gmLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
-        prependParagraph(osmParagraph,
-            `GoogleMaps address link: ` +
-            `<a href="${gmLink}" ` +
-            `>${gmLink}</a>`);
-        targets.push("google");
-
-        if (address_data) {
-            let gLink = `https://www.google.com/search?q=%22${encodeURIComponent(name)}%22%20${encodeURIComponent(address_data["addr:city"])}`;
-            prependParagraph(osmParagraph,
-                `Google name and town link: ` +
-                `<a href="${gLink}" ` +
-                `>${gLink}</a>`);
-            targets.push("google");
-        }
-
-        gmLink = `https://www.google.com/maps/place/${latlon?.lat},${latlon?.lon}`;
-        prependParagraph(osmParagraph,
-            `GoogleMaps lat-lon link: ` +
-            `<a href="${gmLink}" ` +
-            `>${gmLink}</a>`);
-        targets.push("google");
-
-        targets.push("osm_view", "osm_edit", "_blank");
-        console.log(targets);
-
-        {
-            const anchors = content.querySelectorAll("a");
-            for(let i=0; i<targets.length;i++) {
-                anchors[i].target = targets[i];
-            }
-        }
+        const frag = document.createDocumentFragment();
+        frag.append(preserved);
+        frag.append(newContent);
+        content.replaceChildren(frag);
 
         {
             const combo = document.querySelector(".issue-sidebar-combo[data-update-url*='/labels?']");
@@ -157,9 +181,6 @@ const addressCodeBlock = (address_data) => {
                 }
             }
         }
-
-        // remove OSM viewer paragraph
-        osmParagraph.remove();
     }
 
     run();
