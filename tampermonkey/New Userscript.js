@@ -124,6 +124,10 @@ function buildNewContent({ address, latlon, name, address_data }) {
         frag.append(wrap(createLink("Google Maps (lat/lon)", gmLL)));
     }
 
+    // --- Google Search (address) ---
+    const gQueryAddress = `https://www.google.com/search?q=${encodeURIComponent(address)}`;
+    frag.append(wrap(createLink("Google (full address)", gQueryAddress)));
+
     // --- OSM ---
     if (latlon?.lat && latlon?.lon) {
         const osmEditor = `https://www.openstreetmap.org/edit#map=21/${latlon.lat}/${latlon.lon}`;
